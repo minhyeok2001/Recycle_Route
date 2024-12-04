@@ -285,7 +285,7 @@ def home():
         with conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT cb.cID, cb.latitude, cb.longitude, cb.district, cr.date, cr.amount
+                    SELECT cb.cID, cb.district, cb.latitude, cb.longitude, cr.date, cr.amount
                     FROM user_marker um
                     INNER JOIN clothing_box cb ON um.cID = cb.cID
                     LEFT JOIN clothing_record cr ON cb.cID = cr.cID
