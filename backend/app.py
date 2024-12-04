@@ -3,16 +3,16 @@ import psycopg2
 from geopy.distance import geodesic
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # 세션 관리용 비밀 키
+app.secret_key = b'g\xfc\x06\xb4lL\xd3^\xf9<\xa7\xb0\xf5j\xa7\x1e'  # 세션 관리용 비밀 키
 
 # PostgreSQL 연결 함수
 def get_db_connection():
     return psycopg2.connect(
         host="localhost",
         port="5432",
-        user="minhyeokroh",
-        password="psql",
-        database="db_project"
+        user="",
+        password="1234",
+        database="postgres"
     )
 
 # 회원가입 엔드포인트

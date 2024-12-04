@@ -1,5 +1,6 @@
 import psycopg2
 import pandas as pd
+import numpy as np
 
 file1_path = "./db1.csv"  # db1 파일 경로
 file2_path = "./db2.csv"  # db2 파일 경로
@@ -9,9 +10,9 @@ def get_db_connection():
     return psycopg2.connect(
         host="localhost",
         port="5432",
-        user="minhyeokroh",
-        password="psql",
-        database="db_project"
+        user="postgres",
+        password="1234",
+        database="postgres"
     )
 
 # 테이블 생성 함수
@@ -103,8 +104,8 @@ def insert_clothing_boxes():
             with conn.cursor() as cursor:
                 # clothing_box 테이블에 데이터 삽입
                 for _, row in combined_data.iterrows():
-                    latitude = row['위도']
-                    longitude = row['경도']
+                    latitude = float(row['위도'])
+                    longitude = float(row['경도'])
                     cursor.execute(
                         "INSERT INTO clothing_box (latitude, longitude) VALUES (%s, %s)",
                         (latitude, longitude)
