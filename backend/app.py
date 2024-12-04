@@ -26,15 +26,6 @@ def create_tables():
         );
         """,
         """
-        CREATE TABLE IF NOT EXISTS user_marker (
-            uID INT NOT NULL,
-            cID INT NOT NULL,
-            PRIMARY KEY (uID, cID),
-            FOREIGN KEY (uID) REFERENCES user_info(uID) ON DELETE CASCADE,
-            FOREIGN KEY (cID) REFERENCES clothing_box(cID) ON DELETE CASCADE
-        );
-        """,
-        """
         CREATE TABLE IF NOT EXISTS clothing_record (
             cID INT NOT NULL,
             date DATE NOT NULL,
@@ -273,30 +264,80 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# 이거 use effect로 처음에만 가져오기
+@app.route('/api/districts', methods=['GET'])
+def get_districts():
+    try:
+        conn = get_db_connection()
+        with conn:
+            with conn.cursor() as cursor:
+                # clothing_box 테이블에서 고유한 district 조회
+                cursor.execute("""
+                    SELECT DISTINCT district
+                    FROM clothing_box
+                    ORDER BY district ASC;
+                """)
+                districts = cursor.fetchall()
+
+                # 결과를 JSON으로 변환
+                result = [district[0] for district in districts]
+                return jsonify({'districts': result})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # 홈 화면 요청
 @app.route('/api/home', methods=['GET'])
 def home():
     user_id = session.get('uid')
     if not user_id:
         return jsonify({'error': '로그인이 필요합니다.'}), 401
-
     try:
         conn = get_db_connection()
         with conn:
             with conn.cursor() as cursor:
+                # 유저가 가진 그룹 정보 가져오기
                 cursor.execute("""
-                    SELECT cb.cID, cb.district, cb.latitude, cb.longitude, cr.date, cr.amount
-                    FROM user_marker um
-                    INNER JOIN clothing_box cb ON um.cID = cb.cID
-                    LEFT JOIN clothing_record cr ON cb.cID = cr.cID
-                    WHERE um.uID = %s
+                    SELECT g.group_id, g.name
+                    FROM groups g
+                    WHERE g.uID = %s
                 """, (user_id,))
-                markers = cursor.fetchall()
-                result = [{'cid': m[0], 'district':m[1], 'latitude': m[2], 'longitude': m[3], 'date': m[4], 'amount': m[5]} for m in markers]
-                return jsonify({'markers': result})
+                groups = cursor.fetchall()
+
+                # 그룹 ID를 리스트로 추출
+                group_ids = [group[0] for group in groups]
+
+                # 그룹에 속한 마커 정보 가져오기
+                group_markers = []
+                if group_ids:  # 그룹이 있는 경우에만 쿼리 실행
+                    cursor.execute("""
+                        SELECT cb.cID, cb.district, cb.latitude, cb.longitude
+                        FROM group_markers gm
+                        INNER JOIN clothing_box cb ON gm.cID = cb.cID
+                        WHERE gm.group_id = ANY(%s)
+                    """, (group_ids,))
+                    group_markers = cursor.fetchall()
+
+                # 결과 정리
+                result = {
+                    'group_markers': [
+                        {
+                            'cid': m[0],
+                            'latitude': m[2],
+                            'longitude': m[3],
+                        } for m in group_markers
+                    ],
+                    'groups': [
+                        {
+                            'group_id': g[0],
+                            'name': g[1]
+                        } for g in groups
+                    ]
+                }
+                return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+        
 # 마커 정보 조회
 @app.route('/api/marker/<int:cid>', methods=['GET'])
 def get_marker_info(cid):
@@ -339,6 +380,8 @@ def update_marker_info(cid):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+"""
+첫 화면에서 group 받아주니까..
 
 # 그룹 조회
 @app.route('/api/groups', methods=['GET'])
@@ -353,11 +396,11 @@ def get_groups():
                     return jsonify({'error': 'User not logged in'}), 401
 
                 # 그룹 정보 조회
-                cursor.execute("""
+                cursor.execute("
                     SELECT group_id, name
                     FROM groups
                     WHERE uID = %s;
-                """, (user_id,))
+                "", (user_id,))
                 groups = cursor.fetchall()
 
                 if not groups:
@@ -367,6 +410,8 @@ def get_groups():
                 return jsonify({'groups': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
 
 # 그룹 추가
 @app.route('/api/add_group', methods=['POST'])
@@ -382,21 +427,22 @@ def add_group():
         conn = get_db_connection()
         with conn:
             with conn.cursor() as cursor:
-                cursor.execute("""
+                cursor.execute(""
                     INSERT INTO groups (name, uID)
                     VALUES (%s, %s)
                     RETURNING group_id;
-                """, (group_name, session['uid']))
+                "", (group_name, session['uid']))
                 group_id = cursor.fetchone()[0]
 
                 for cid in cid_list:
-                    cursor.execute("""
+                    cursor.execute(""
                         INSERT INTO group_markers (group_id, cID)
                         VALUES (%s, %s);
-                    """, (group_id, cid))
+                    "", (group_id, cid))
                 return jsonify({'success': True, 'group_id': group_id})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/group/<int:group_id>', methods=['GET'])
 def get_group_markers(group_id):
@@ -405,12 +451,12 @@ def get_group_markers(group_id):
         with conn:
             with conn.cursor() as cursor:
                 # 특정 그룹에 속한 마커 정보 조회
-                cursor.execute("""
+                cursor.execute(""
                     SELECT cb.cID, cb.district, cb.latitude, cb.longitude
                     FROM group_markers gm
                     INNER JOIN clothing_box cb ON gm.cID = cb.cID
                     WHERE gm.group_id = %s;
-                """, (group_id,))
+                "", (group_id,))
                 markers = cursor.fetchall()
                 if not markers:
                     return jsonify({'error': 'No markers found for the group.'}), 404
@@ -420,6 +466,7 @@ def get_group_markers(group_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+"""
 
 @app.route('/api/add_markers/<region>', methods=['GET'])
 def add_markers(region):
@@ -437,15 +484,16 @@ def add_markers(region):
                 if not markers:
                     return jsonify({'error': 'No markers found for the region.'}), 404
                 
-                result = [{'cid': marker[0], 'district': marker[1], 'latitude': marker[2], 'longitude': marker[3]} for marker in markers]
+                result = [{'cid': marker[0], '': marker[1], 'latitude': marker[2], 'longitude': marker[3]} for marker in markers]
                 return jsonify({'markers': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/add_markers/<region>', methods=['POST'])
+@app.route('/api/add_markers/confirm', methods=['POST'])
 def confirm_add_markers(region):
     data = request.json
+    group_name = data.get('group_name')
     cid_list = data.get('cid_list')
 
     if not cid_list or not isinstance(cid_list, list):
@@ -460,17 +508,25 @@ def confirm_add_markers(region):
                 if not user_id:
                     return jsonify({'error': 'User not logged in'}), 401
 
-                # 마커 추가
+                 # 새로운 그룹 생성
+                cursor.execute("""
+                    INSERT INTO groups (name, uID)
+                    VALUES (%s, %s)
+                    RETURNING group_id;
+                """, (group_name, user_id))
+                group_id = cursor.fetchone()[0]  # 생성된 그룹 ID 반환
+
+                # 그룹에 마커 추가
                 for cid in cid_list:
                     cursor.execute("""
-                        INSERT INTO user_marker (uID, cID)
+                        INSERT INTO group_markers (group_id, cID)
                         VALUES (%s, %s)
                         ON CONFLICT DO NOTHING;  -- 중복 방지
-                    """, (user_id, cid))
-                return jsonify({'success': True, 'message': 'Markers added successfully.'})
+                    """, (group_id, cid))
+
+                return jsonify({'success': True, 'group_id': group_id, 'message': 'Group created successfully!'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 
 if __name__ == '__main__':
