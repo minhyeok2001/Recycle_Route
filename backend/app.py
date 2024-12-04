@@ -210,6 +210,62 @@ def create_dummy_tables():
 
 # create_dummy_tables()
 
+
+def insert_test_data():
+    try:
+        conn = get_db_connection()
+        with conn:
+            with conn.cursor() as cursor:
+                # user_info에 사용자 추가
+                cursor.execute("""
+                    INSERT INTO user_info (email, pw)
+                    VALUES ('hahasssd', '0000')
+                    ON CONFLICT DO NOTHING;
+                """)
+                
+                # 해당 사용자의 uID 가져오기
+                cursor.execute("SELECT uID FROM user_info WHERE email = 'hahasssd';")
+                user_id = cursor.fetchone()[0]
+
+                # groups에 그룹 추가
+                cursor.execute("""
+                    INSERT INTO groups (name, uID)
+                    VALUES ('테스트 그룹 1', %s), ('테스트 그룹 2', %s)
+                    ON CONFLICT DO NOTHING
+                    RETURNING group_id;
+                """, (user_id, user_id))
+                group_ids = cursor.fetchall()
+                
+                # clothing_box에 마커 추가
+                cursor.execute("""
+                    INSERT INTO clothing_box (district, latitude, longitude)
+                    VALUES 
+                    ('가산동', 37.481, 126.882),
+                    ('독산동', 37.482, 126.883),
+                    ('시흥동', 37.483, 126.884)
+                    ON CONFLICT DO NOTHING
+                    RETURNING cID;
+                """)
+                marker_ids = cursor.fetchall()
+
+                # group_markers에 그룹과 마커 연결
+                for group_id in group_ids:
+                    for marker_id in marker_ids:
+                        cursor.execute("""
+                            INSERT INTO group_markers (group_id, cID)
+                            VALUES (%s, %s)
+                            ON CONFLICT DO NOTHING;
+                        """, (group_id[0], marker_id[0]))
+
+                print("테스트 데이터 삽입 완료!")
+    except Exception as e:
+        print(f"오류 발생: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+#insert_test_data()
+
 # 회원가입 엔드포인트
 @app.route('/api/signup', methods=['POST'])
 def signup():
