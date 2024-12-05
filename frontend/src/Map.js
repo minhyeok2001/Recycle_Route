@@ -53,7 +53,7 @@ function Map() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/marker/{cid}"); // 백엔드 엔드포인트 호출
+        const response = await fetch("http://localhost:5000/api/home"); // 백엔드 엔드포인트 호출
         const data = await response.json();
         setCollectionPoints(data); // 데이터 상태 업데이트
       } catch (error) {
