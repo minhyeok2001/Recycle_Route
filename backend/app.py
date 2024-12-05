@@ -305,7 +305,7 @@ def insert_view_trigger():
             conn.close()
 
 
-flag = 1
+flag = 0
 
 if flag == 1:
     create_tables()
