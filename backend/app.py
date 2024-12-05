@@ -65,11 +65,9 @@ def create_tables():
     finally:
         conn.close()
 
-# create_tables()
 
 
 #insert dummyfile 
-
 
 def create_dummy_tables():
     dummy_queries = [
@@ -208,7 +206,7 @@ def create_dummy_tables():
     finally:
         conn.close()
 
-# create_dummy_tables()
+
 
 
 def insert_test_data():
@@ -264,7 +262,57 @@ def insert_test_data():
         if conn:
             conn.close()
 
-#insert_test_data()
+
+# 트리거와 뷰 추가.
+def insert_view_trigger():
+    try:
+        conn = get_db_connection()
+        with conn:
+            with conn.cursor() as cursor:
+                # cid
+                cursor.execute("""
+                CREATE OR REPLACE VIEW group_markers_view AS
+                SELECT 
+                    gm.group_id,
+                    cb.cID,
+                    cb.district,
+                    cb.latitude,
+                    cb.longitude
+                FROM group_markers gm
+                INNER JOIN clothing_box cb ON gm.cID = cb.cID;
+
+                CREATE OR REPLACE FUNCTION validate_amount()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    IF NEW.amount < 1 OR NEW.amount > 100 THEN
+                        RAISE EXCEPTION 'Amount must be between 1 and 100';
+                    END IF;
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+
+                CREATE TRIGGER validate_amount_trigger
+                BEFORE INSERT OR UPDATE ON clothing_record
+                FOR EACH ROW
+                EXECUTE FUNCTION validate_amount();
+                """)
+
+                print("view, trigger 설정 완료")
+    except Exception as e:
+        print(f"오류 발생: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+
+flag = 0
+
+if flag == 1:
+    create_tables()
+    create_dummy_tables()
+    insert_test_data()
+    insert_view_trigger()
+
 
 # 회원가입 엔드포인트
 @app.route('/api/signup', methods=['POST'])
@@ -365,12 +413,11 @@ def home():
 
                 # 그룹에 속한 마커 정보 가져오기
                 group_markers = []
-                if group_ids:  # 그룹이 있는 경우에만 쿼리 실행
+                if group_ids:  # 그룹이 있는 경우에만 쿼리 실행 -> 이거 view로 따로 뺴기
                     cursor.execute("""
-                        SELECT cb.cID, cb.district, cb.latitude, cb.longitude
-                        FROM group_markers gm
-                        INNER JOIN clothing_box cb ON gm.cID = cb.cID
-                        WHERE gm.group_id = ANY(%s)
+                        SELECT cID, district, latitude, longitude
+                        FROM group_markers_view
+                        WHERE group_id = ANY(%s);
                     """, (group_ids,))
                     group_markers = cursor.fetchall()
 
@@ -425,7 +472,7 @@ def update_marker_info(cid):
     try:
         conn = get_db_connection()
         with conn:
-            with conn.cursor() as cursor:
+            with conn.cursor() as cursor:   # 여기서 trigger 발생 !! 즉 한번 수거량이 의류수거함 최대 개수를 넘지 않도록 
                 cursor.execute("""
                     INSERT INTO clothing_record (cID, date, amount)
                     VALUES (%s, %s, %s)
@@ -436,93 +483,6 @@ def update_marker_info(cid):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-"""
-첫 화면에서 group 받아주니까..
-
-# 그룹 조회
-@app.route('/api/groups', methods=['GET'])
-def get_groups():
-    try:
-        conn = get_db_connection()
-        with conn:
-            with conn.cursor() as cursor:
-                # 사용자 ID 확인 (로그인 기반)
-                user_id = session.get('uid')
-                if not user_id:
-                    return jsonify({'error': 'User not logged in'}), 401
-
-                # 그룹 정보 조회
-                cursor.execute("
-                    SELECT group_id, name
-                    FROM groups
-                    WHERE uID = %s;
-                "", (user_id,))
-                groups = cursor.fetchall()
-
-                if not groups:
-                    return jsonify({'groups': []})  # 그룹이 없는 경우 빈 리스트 반환
-
-                result = [{'group_id': group[0], 'name': group[1]} for group in groups]
-                return jsonify({'groups': result})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-
-# 그룹 추가
-@app.route('/api/add_group', methods=['POST'])
-def add_group():
-    data = request.json
-    group_name = data.get('group_name')
-    cid_list = data.get('cid_list')
-
-    if not group_name or not cid_list:
-        return jsonify({'error': '그룹명과 마커 리스트를 입력해주세요.'}), 400
-
-    try:
-        conn = get_db_connection()
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(""
-                    INSERT INTO groups (name, uID)
-                    VALUES (%s, %s)
-                    RETURNING group_id;
-                "", (group_name, session['uid']))
-                group_id = cursor.fetchone()[0]
-
-                for cid in cid_list:
-                    cursor.execute(""
-                        INSERT INTO group_markers (group_id, cID)
-                        VALUES (%s, %s);
-                    "", (group_id, cid))
-                return jsonify({'success': True, 'group_id': group_id})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/group/<int:group_id>', methods=['GET'])
-def get_group_markers(group_id):
-    try:
-        conn = get_db_connection()
-        with conn:
-            with conn.cursor() as cursor:
-                # 특정 그룹에 속한 마커 정보 조회
-                cursor.execute(""
-                    SELECT cb.cID, cb.district, cb.latitude, cb.longitude
-                    FROM group_markers gm
-                    INNER JOIN clothing_box cb ON gm.cID = cb.cID
-                    WHERE gm.group_id = %s;
-                "", (group_id,))
-                markers = cursor.fetchall()
-                if not markers:
-                    return jsonify({'error': 'No markers found for the group.'}), 404
-                
-                result = [{'cid': marker[0], 'district': marker[1], 'latitude': marker[2], 'longitude': marker[3]} for marker in markers]
-                return jsonify({'markers': result})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-"""
 
 @app.route('/api/add_markers/<region>', methods=['GET'])
 def add_markers(region):
@@ -547,7 +507,7 @@ def add_markers(region):
 
 
 @app.route('/api/add_markers/confirm', methods=['POST'])
-def confirm_add_markers(region):
+def confirm_add_markers():
     data = request.json
     group_name = data.get('group_name')
     cid_list = data.get('cid_list')
@@ -581,6 +541,31 @@ def confirm_add_markers(region):
                     """, (group_id, cid))
 
                 return jsonify({'success': True, 'group_id': group_id, 'message': 'Group created successfully!'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 행정구역 별 전체 수거량 합계 OLAP
+@app.route('/api/district_rollup', methods=['GET'])
+def get_district_rollup():
+    try:
+        conn = get_db_connection()
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""  
+                    SELECT district, SUM(amount) AS total_amount
+                    FROM clothing_record cr
+                    JOIN clothing_box cb ON cr.cID = cb.cID
+                    GROUP BY ROLLUP(cb.district);
+                """)
+                rollup_data = cursor.fetchall()
+                result = [
+                    {
+                        'district': row[0] if row[0] else '전체',
+                        'total_amount': row[1]
+                    } for row in rollup_data
+                ]
+                return jsonify({'rollup_summary': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
