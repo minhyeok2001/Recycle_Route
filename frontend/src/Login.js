@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import styles from "./login.module.css";
 
 function Login({ setIsLoggedIn }) {
   const [email, setEmail] = useState("");
@@ -33,38 +34,26 @@ function Login({ setIsLoggedIn }) {
   };
 
   return (
-    <div style={{ textAlign: "center", marginTop: "50px" }}>
+    <div className={styles.page}>
       <h2>{isSignup ? "회원가입" : "로그인"}</h2>
       <input
         type="email"
         placeholder="이메일"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        style={{ display: "block", margin: "10px auto", padding: "10px", width: "300px" }}
+        className={styles.input}
       />
       <input
         type="password"
         placeholder="비밀번호"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        style={{ display: "block", margin: "10px auto", padding: "10px", width: "300px" }}
+        className={styles.input}
       />
-      <button onClick={handleSubmit} style={{ padding: "10px 20px", marginTop: "10px" }}>
+      <button onClick={handleSubmit} className={styles.submit}>
         {isSignup ? "회원가입" : "로그인"}
       </button>
-      <button
-        onClick={() => setIsSignup(!isSignup)}
-        style={{
-          display: "block",
-          margin: "20px auto",
-          padding: "10px 20px",
-          background: "transparent",
-          border: "none",
-          color: "blue",
-          textDecoration: "underline",
-          cursor: "pointer",
-        }}
-      >
+      <button onClick={() => setIsSignup(!isSignup)} className={styles.change}>
         {isSignup ? "이미 계정이 있나요? 로그인" : "계정이 없나요? 회원가입"}
       </button>
     </div>

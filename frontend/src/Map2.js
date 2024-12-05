@@ -1,21 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "./Sidebar";
+import styles from "./map2.module.css"
 
 function Map() {
-  const [map, setMap] = useState(null); // 지도 객체 상태
   const [currentPosition, setCurrentPosition] = useState({ lat: 37.5665, lng: 126.978 }); // 초기 위치 (서울)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 사이드바 상태
+  const map = useRef(null);
 
   useEffect(() => {
     // 네이버 지도 초기화
     const mapDiv = document.getElementById("map");
 
     if (window.naver && window.naver.maps) {
-      const mapInstance = new window.naver.maps.Map(mapDiv, {
+      map.current = new window.naver.maps.Map(mapDiv, {
         center: new window.naver.maps.LatLng(currentPosition.lat, currentPosition.lng),
         zoom: 14,
       });
-      setMap(mapInstance);
     } else {
       console.error("Naver Maps script is not loaded");
     }
@@ -39,44 +39,27 @@ function Map() {
   }, []);
 
   useEffect(() => {
-    if (map) {
-      new window.naver.maps.Marker({
-        position: new window.naver.maps.LatLng(currentPosition.lat, currentPosition.lng),
-        map,
-      });
-    }
-  }, [map, currentPosition]);
+    new window.naver.maps.Marker({
+      position: new window.naver.maps.LatLng(currentPosition.lat, currentPosition.lng),
+      map: map.current,
+    });
+  }, [currentPosition]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
   return (
-    <div style={{ height: "100vh", position: "relative" }}>
+    <div className={styles.page}>
       {/* 사이드바 */}
       <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
 
       {/* 지도 영역 */}
-      <div id="map" style={{ width: "100%", height: "100%" }} />
+      <div id="map" className={styles.map} />
 
       {/* 사이드바 열기 버튼 */}
       {!isSidebarOpen && (
-        <button
-          onClick={toggleSidebar}
-          style={{
-            position: "fixed",
-            top: "10px",
-            right: "10px",
-            zIndex: "1001",
-            backgroundColor: "#f4f4f4",
-            border: "1px solid #ccc",
-            borderRadius: "3px",
-            padding: "5px",
-            cursor: "pointer",
-          }}
-        >
-          열기
-        </button>
+        <button onClick={toggleSidebar} className={styles.button}>열기</button>
       )}
     </div>
   );
