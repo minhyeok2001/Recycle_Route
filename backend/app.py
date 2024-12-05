@@ -1,18 +1,22 @@
 from flask import Flask, request, jsonify, session
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 
+
+
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 app.secret_key = 'hola~' 
 
 # PostgreSQL 연결 함수
 def get_db_connection():
     return psycopg2.connect(
         host="localhost",
-        port="5431",
-        user="minhyeokroh",
-        password="psql",
-        database="db_project"
+        port="5432",
+        user="postgres",
+        password="1234",
+        database="postgres"
     )
 
 # 테이블 생성 함수

@@ -9,10 +9,10 @@ file2_path = "./db2.csv"  # db2 파일 경로
 def get_db_connection():
     return psycopg2.connect(
         host="localhost",
-        port="5431",
-        user="minhyeokroh",
-        password="psql",
-        database="db_project"
+        port="5432",
+        user="postgres",
+        password="1234",
+        database="postgres"
     )
 
 # 테이블 생성 함수

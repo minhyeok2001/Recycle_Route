@@ -1,34 +1,48 @@
 import React from "react";
 
-function Sidebar({ collectionPoints, selectedPoint, setSelectedPoint }) {
+function Sidebar({ isOpen, toggleSidebar }) {
   return (
     <div
       style={{
-        width: "300px",
-        overflowY: "auto",
-        borderRight: "1px solid #ccc",
-        padding: "10px",
+        width: isOpen ? "300px" : "0",
+        height: "100%",
+        backgroundColor: "#f4f4f4",
+        borderLeft: "1px solid #ccc",
+        padding: isOpen ? "10px" : "0",
+        boxSizing: "border-box",
+        overflowX: "hidden",
+        transition: "width 0.3s ease, padding 0.3s ease",
+        position: "fixed",
+        top: "0",
+        right: "0",
+        zIndex: "1000",
       }}
     >
-      <h2>그룹 목록</h2>
-      <ul style={{ listStyleType: "none", padding: 0 }}>
-        {collectionPoints.map((point) => (
-          <li
-            key={point.name}
-            style={{
-              padding: "10px",
-              margin: "5px 0",
-              background: selectedPoint === point ? "#f0f0f0" : "#fff",
-              cursor: "pointer",
-              border: "1px solid #ccc",
-              borderRadius: "5px",
-            }}
-            onClick={() => setSelectedPoint(point)} // 클릭 시 선택된 수거함 업데이트
-          >
-            {point.name}
-          </li>
-        ))}
-      </ul>
+      {/* 닫기 버튼 */}
+      <button
+        onClick={toggleSidebar}
+        style={{
+          position: "absolute",
+          top: "10px",
+          right: "10px",
+          backgroundColor: "#ddd",
+          border: "1px solid #ccc",
+          borderRadius: "5px",
+          padding: "5px 10px",
+          cursor: "pointer",
+          zIndex: "1001",
+        }}
+      >
+        닫기
+      </button>
+
+      {/* 사이드바 내용 */}
+      {isOpen && (
+        <div style={{ marginTop: "50px" }}>
+          <h2>그룹</h2>
+          <p>여기에 원하는 내용을 추가하세요.</p>
+        </div>
+      )}
     </div>
   );
 }
