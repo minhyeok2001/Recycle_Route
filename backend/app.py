@@ -132,11 +132,6 @@ def create_dummy_tables():
                 FROM clothing_box
                 ORDER BY RANDOM()
                 LIMIT 1;
-
-                -- 데이터 삽입
-                INSERT INTO user_marker (uID, cID)
-                VALUES (random_uid, random_cid)
-                ON CONFLICT DO NOTHING; -- 중복된 (uID, cID) 삽입 시 무시
             END LOOP;
         END $$;
 
