@@ -1,0 +1,28 @@
+.page {
+    text-align: center;
+    margin-top: 50px;
+
+}
+
+.input {
+    display: block;
+    margin: 10px auto;
+    padding: 10px;
+    width: 300px;
+}
+
+.submit {
+    padding: 10px 20px;
+    margin-top: 10px;
+}
+
+.change {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: blue;
+    text-decoration: underline;
+    cursor: pointer;
+}

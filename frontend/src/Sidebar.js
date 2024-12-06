@@ -1,34 +1,26 @@
 import React from "react";
+import styles from "./sidebar.module.css";
 
-function Sidebar({ collectionPoints, selectedPoint, setSelectedPoint }) {
+function Sidebar({ isOpen, toggleSidebar }) {
   return (
     <div
-      style={{
-        width: "300px",
-        overflowY: "auto",
-        borderRight: "1px solid #ccc",
-        padding: "10px",
-      }}
+      className={isOpen ? styles.openpage : styles.closepage}
     >
-      <h2>그룹 목록</h2>
-      <ul style={{ listStyleType: "none", padding: 0 }}>
-        {collectionPoints.map((point) => (
-          <li
-            key={point.name}
-            style={{
-              padding: "10px",
-              margin: "5px 0",
-              background: selectedPoint === point ? "#f0f0f0" : "#fff",
-              cursor: "pointer",
-              border: "1px solid #ccc",
-              borderRadius: "5px",
-            }}
-            onClick={() => setSelectedPoint(point)} // 클릭 시 선택된 수거함 업데이트
-          >
-            {point.name}
-          </li>
-        ))}
-      </ul>
+      {/* 닫기 버튼 */}
+      <button
+        onClick={toggleSidebar}
+        className={styles.button}
+      >
+        닫기
+      </button>
+
+      {/* 사이드바 내용 */}
+      {isOpen && (
+        <div className={styles.group}>
+          <h2>그룹</h2>
+          <p>여기에 원하는 내용을 추가하세요.</p>
+        </div>
+      )}
     </div>
   );
 }
