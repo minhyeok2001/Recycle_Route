@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "./Sidebar";
 import styles from "./map2.module.css"
+import axios from "axios";
 
 function Map() {
   const [currentPosition, setCurrentPosition] = useState({ lat: 37.5665, lng: 126.978 }); // 초기 위치 (서울)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 사이드바 상태
+  const [groups, setGroups] = useState([]);
+  const [groupMarkers, setGroupMarkers] = useState([]);
   const map = useRef(null);
 
   useEffect(() => {
@@ -44,6 +47,21 @@ function Map() {
       map: map.current,
     });
   }, [currentPosition]);
+
+  useEffect(() => {
+    // 홈 데이터 요청
+    const fetchGroups = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:5000/api/home");
+        setGroups(response.data.groups); // 그룹 데이터 설정
+        setGroupMarkers(response.data.group_markers); // 초기 마커 설정
+      } catch (error) {
+        console.error("데이터 요청 실패:", error);
+      }
+    };
+
+    fetchGroups();
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
