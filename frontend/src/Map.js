@@ -1,33 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "./Sidebar";
+import styles from "./map2.module.css";
 
-function Map({uid}) {
-  const [map, setMap] = useState(null); // 지도 객체 상태
+function Map({ uid }) {
   const [currentPosition, setCurrentPosition] = useState({ lat: 37.5665, lng: 126.978 }); // 초기 위치 (서울)
-  const [collectionPoints, setCollectionPoints] = useState([]); //의류수거함 데이터 상태
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 사이드바 상태
+  const [groups, setGroups] = useState([]); // 그룹 목록
+  const [groupMarkers, setGroupMarkers] = useState([]); // 현재 활성화된 그룹의 마커
+  const [collectionPoints, setCollectionPoints] = useState([]); // 의류 수거함 데이터
+  const [activeGroup, setActiveGroup] = useState(null); // 현재 활성화된 그룹 ID
+  const map = useRef(null);
 
   useEffect(() => {
     // 네이버 지도 초기화
     const mapDiv = document.getElementById("map");
-
     if (window.naver && window.naver.maps) {
-      const mapInstance = new window.naver.maps.Map(mapDiv, {
+      map.current = new window.naver.maps.Map(mapDiv, {
         center: new window.naver.maps.LatLng(currentPosition.lat, currentPosition.lng),
         zoom: 14,
       });
-      setMap(mapInstance);
     } else {
       console.error("Naver Maps script is not loaded");
     }
-  }, [currentPosition]);
+  }, []);
 
-  // 현재 위치 가져오기
-  useEffect(() => {  
+  useEffect(() => {
+    // 현재 위치 가져오기
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          console.log("현재 위치:", latitude, longitude);
           setCurrentPosition({ lat: latitude, lng: longitude });
         },
         (error) => {
@@ -39,61 +41,59 @@ function Map({uid}) {
     }
   }, []);
 
-  //현재 위치 지도에 마킹하기
   useEffect(() => {
-    if (map) {
+    // 현재 위치 지도에 마킹
+    if (map.current) {
       new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(currentPosition.lat, currentPosition.lng),
-        map,
+        map: map.current,
       });
     }
-  }, [map, currentPosition]);
-  
-  //의류수거함 위치 데이터 들고오기
+  }, [currentPosition]);
+
   useEffect(() => {
+    // 홈 데이터 요청 (그룹 및 의류 수거함 데이터 가져오기)
     const fetchData = async () => {
       try {
         const response = await fetch("http://127.0.0.1:5001/api/home", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json", // 요청 헤더 설정
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ uid }), // 요청 데이터
+          body: JSON.stringify({ uid }),
         });
         const data = await response.json();
-        setCollectionPoints(data.group_markers); // 데이터 상태 업데이트
+        setGroups(data.groups); // 그룹 데이터 설정
+        setCollectionPoints(data.group_markers); // 의류 수거함 데이터 설정
       } catch (error) {
-        console.error("Failed to fetch collection points:", error);
+        console.error("Failed to fetch home data:", error);
       }
     };
 
-    fetchData();
-  }, []);
+    if (uid) {
+      fetchData();
+    }
+  }, [uid]);
 
-  // 의류 수거함 위치에 마커 추가
   useEffect(() => {
-    if (map && collectionPoints.length > 0 && window.naver && window.naver.maps) {
+    // 의류 수거함 마커 추가
+    if (map.current && collectionPoints.length > 0) {
       collectionPoints.forEach((point) => {
         const marker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(point.latitude, point.longitude),
-          map: map,
-          title: `ID: ${point.cid}`, // 마커 제목에 cid 표시
+          map: map.current,
+          title: `ID: ${point.cid}`,
         });
-  
+
         const infoWindow = new window.naver.maps.InfoWindow();
-  
-        // 마커 클릭 시 팝업 표시 및 데이터 요청
+
+        // 마커 클릭 시 팝업 표시
         window.naver.maps.Event.addListener(marker, "click", async () => {
           try {
-            // Flask API 호출
             const response = await fetch(`http://127.0.0.1:5001/api/marker/${point.cid}`);
-            if (!response.ok) {
-              throw new Error(`Error: ${response.status}`);
-            }
-  
+            if (!response.ok) throw new Error(`Error: ${response.status}`);
+
             const data = await response.json();
-  
-            // 서버 응답 데이터 기반으로 팝업 내용 설정
             const content = data.marker_info
               ? `<div style="padding:10px;">
                   <strong>ID:</strong> ${point.cid}<br/>
@@ -101,72 +101,102 @@ function Map({uid}) {
                   <strong>Amount:</strong> ${data.marker_info.amount}<br/>
                   <button id="edit-button-${point.cid}" style="margin-top:10px;">Edit</button>
                  </div>`
-              : `<div style="padding:10px;">No record available for this marker<br/>
-              <button id="edit-button-${point.cid}" style="margin-top:10px;">Edit</button></div>
-              `;
-  
-            // InfoWindow 내용 업데이트 후 표시
+              : `<div style="padding:10px;">No record available for this marker</div>`;
             infoWindow.setContent(content);
-            infoWindow.open(map, marker);
+            infoWindow.open(map.current, marker);
 
             setTimeout(() => {
               const editButton = document.getElementById(`edit-button-${point.cid}`);
               if (editButton) {
-                editButton.addEventListener("click", () => {
-                  handleEditClick(point.cid);
-                });
+                editButton.addEventListener("click", () => handleEditClick(point.cid));
               }
             }, 0);
-            
           } catch (error) {
             console.error("Failed to fetch marker info:", error);
-  
-            // 에러 메시지 표시
-            infoWindow.setContent(`<div style="padding:10px;">Error fetching marker data</div>`);
-            infoWindow.open(map, marker);
           }
         });
       });
     }
-  
-    // Edit 버튼 클릭 핸들러
-    const handleEditClick = (cid) => {
-      const newDate = prompt("Enter new date (YYYY-MM-DD):");
-      const newAmount = prompt("Enter new amount:");
-  
-      if (newDate && newAmount) {
-        // Flask API로 수정 요청
-        fetch(`http://127.0.0.1:5001/api/marker/${cid}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ date: newDate, amount: newAmount }),
+  }, [collectionPoints]);
+
+  const handleEditClick = (cid) => {
+    const newDate = prompt("Enter new date (YYYY-MM-DD):");
+    const newAmount = prompt("Enter new amount:");
+    if (newDate && newAmount) {
+      fetch(`http://127.0.0.1:5001/api/marker/${cid}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ date: newDate, amount: newAmount }),
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Error: ${response.status}`);
+          return response.json();
         })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`Error: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then((data) => {
-            alert("Record updated successfully!");
-            console.log("Updated Data:", data);
-          })
-          .catch((error) => {
-            console.error("Failed to update marker info:", error);
-            alert("Failed to update record.");
-          });
-      } else {
-        alert("Invalid input. Update cancelled.");
-      }
-    };
-  }, [map, collectionPoints]);
+        .then(() => alert("Record updated successfully!"))
+        .catch(() => alert("Failed to update record."));
+    } else {
+      alert("Invalid input. Update cancelled.");
+    }
+  };
+
+  const toggleGroupMarkers = async (group_id) => {
+    if (map.current) {
+      try {
+        const response = await fetch(`http://127.0.0.1:5001/api/group_markers/${group_id}`);
+        const data = await response.json();
   
+        // 기존 마커 제거
+        groupMarkers.forEach((marker) => marker.setMap(null));
+  
+        // 새로운 마커 생성 및 추가
+        const newMarkers = data.groups.map((group) => {
+          const marker = new window.naver.maps.Marker({
+            position: new window.naver.maps.LatLng(group.latitude, group.longitude),
+            map: map.current,
+            title: `CID: ${group.cid}`, // 마커에 CID 표시
+            icon: {
+              content: `<div style="width: 10px; height: 10px; background-color: #ff3333; border-radius: 50%;"></div>`, // 빨간색 동그라미
+            },
+          });
+  
+          // 팝업 추가
+          const infoWindow = new window.naver.maps.InfoWindow({
+            content: `<div style="padding:10px;">Group: ${group.name}</div>`,
+          });
+  
+          window.naver.maps.Event.addListener(marker, "click", () => {
+            infoWindow.open(map.current, marker); // 마커 클릭 시 팝업 표시
+          });
+  
+          return marker;
+        });
+  
+        setGroupMarkers(newMarkers); // 새 마커 상태 저장
+        setActiveGroup(group_id); // 활성화된 그룹 업데이트
+      } catch (error) {
+        console.error("Failed to toggle group markers:", error);
+      }
+    }
+  };
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <div>
-      <div id="map" style={{ width: "100%", height: "500px" }} />
+    <div className={styles.page}>
+      <Sidebar
+        isOpen={isSidebarOpen}
+        toggleSidebar={toggleSidebar}
+        groups={groups}
+        toggleGroupMarkers={toggleGroupMarkers}
+      />
+      <div id="map" className={styles.map} />
+      {!isSidebarOpen && (
+        <button onClick={toggleSidebar} className={styles.button}>
+          열기
+        </button>
+      )}
     </div>
   );
 }
