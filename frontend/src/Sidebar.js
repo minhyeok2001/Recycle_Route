@@ -57,7 +57,11 @@ function Sidebar({
   map,
   activeGroup, // 활성화된 그룹
   setActiveGroup, // 활성화된 그룹 업데이트
-  fetchGroups
+  groupMarkers,
+  setGroupMarkers,
+  fetchGroups,
+  collectionPoints,
+  setCollectionPoints
 }) {
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState("");
@@ -88,6 +92,7 @@ function Sidebar({
     setSelectedRegion("");
     setGroupName("");
     setSelectedMarkers([]);
+    fetchGroups(); // 그룹 목록 재갱신
   };
 
   const stopAddingGroup = () => {
@@ -180,6 +185,37 @@ function Sidebar({
     });
   };
 
+  const deleteGroup = async (group_id) => {
+    const confirmDelete = window.confirm("정말로 이 그룹을 삭제하시겠습니까?");
+    if (!confirmDelete) return;
+  
+    try {
+      const response = await fetch(`http://127.0.0.1:5001/api/delete_group/${group_id}`, {
+        method: "DELETE",
+      });
+  
+      const data = await response.json();
+      if (data.success) {
+        alert("그룹이 성공적으로 삭제되었습니다!");
+  
+        // 지도에서 해당 그룹의 마커를 제거
+        if (activeGroup === group_id) {
+          groupMarkers.forEach((marker) => marker.setMap(null)); // 지도에서 마커 제거
+          setGroupMarkers([]); // 상태 초기화
+          setActiveGroup(null); // 활성화된 그룹 해제
+        }
+  
+        await fetchGroups(); // 그룹 목록을 갱신
+      } else {
+        alert("그룹 삭제에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("Failed to delete group:", error);
+      alert("서버 오류로 인해 그룹 삭제에 실패했습니다.");
+    }
+  };
+
+
   return (
     <div className={isOpen ? styles.openpage : styles.closepage}>
       <button onClick={toggleSidebar} className={styles.button}>
@@ -208,6 +244,20 @@ function Sidebar({
                   }`}
                 />
               </ToggleContainer>
+              <button
+                onClick={() => deleteGroup(group.group_id)}
+                style={{
+                  marginLeft: "10px",
+                  padding: "5px 10px",
+                  backgroundColor: "#ff4d4f",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "5px",
+                  cursor: "pointer",
+                }}
+              >
+                삭제
+              </button>
             </GroupItem>
           ))
         ) : (
@@ -219,20 +269,22 @@ function Sidebar({
         {isAddingGroup ? (
           <>
             <h3>그룹 추가</h3>
-            <select
-              value={selectedRegion}
-              onChange={(e) => {
-                setSelectedRegion(e.target.value);
-                fetchMarkersByRegion(e.target.value);
-              }}
-            >
-              <option value="">지역 선택</option>
-              {regions.map((region) => (
-                <option key={region} value={region}>
-                  {region}
-                </option>
-              ))}
-            </select>
+            <div className="select-container">
+              <select
+                value={selectedRegion}
+                onChange={(e) => {
+                  setSelectedRegion(e.target.value);
+                  fetchMarkersByRegion(e.target.value);
+                }}
+              >
+                <option value="">지역 선택</option>
+                {regions.map((region) => (
+                  <option key={region} value={region}>
+                    {region}
+                  </option>
+                ))}
+              </select>
+            </div>
             <input
               type="text"
               placeholder="그룹 이름"

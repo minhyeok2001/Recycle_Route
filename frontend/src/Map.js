@@ -73,6 +73,7 @@ function Map({ uid }) {
       fetchGroups();
     }
   }, [uid]);
+  
   useEffect(() => {
     // 의류 수거함 마커 추가
     if (map.current && collectionPoints.length > 0) {
@@ -298,6 +299,10 @@ function Map({ uid }) {
         fetchGroups={fetchGroups}
         activeGroup={activeGroup} // 현재 활성화된 그룹 전달
         setActiveGroup={setActiveGroup} // 상태 업데이트 함수 전달
+        setGroupMarkers={setGroupMarkers}
+        groupMarkers={groupMarkers}
+        collectionPoints={collectionPoints}
+        setCollectionPoints={setCollectionPoints}
       />
       <div id="map" className={styles.map} />
       {!isSidebarOpen && (
