@@ -49,17 +49,19 @@ const GroupItem = styled.div`
 `;
 
 function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers }) {
-  const [activeGroups, setActiveGroups] = React.useState({}); // State to track toggled groups
+  const [activeGroup, setActiveGroup] = React.useState(null); // 현재 활성화된 그룹 ID 저장
 
   // Toggle handler for individual groups
   const toggleHandler = (group_id) => {
-    setActiveGroups((prev) => ({
-      ...prev,
-      [group_id]: !prev[group_id],
-    }));
-
-    // Call toggleGroupMarkers with the group_id
-    toggleGroupMarkers(group_id);
+    if (group_id === activeGroup) {
+      // 이미 활성화된 그룹을 다시 클릭하면 해제
+      setActiveGroup(null);
+      toggleGroupMarkers(null); // 그룹 마커 제거
+    } else {
+      // 새로운 그룹 활성화
+      setActiveGroup(group_id);
+      toggleGroupMarkers(group_id);
+    }
   };
 
   return (
@@ -81,12 +83,12 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers }) {
               <ToggleContainer onClick={() => toggleHandler(group.group_id)}>
                 <div
                   className={`toggle-container ${
-                    activeGroups[group.group_id] ? "toggle--checked" : ""
+                    activeGroup === group.group_id ? "toggle--checked" : ""
                   }`}
                 />
                 <div
                   className={`toggle-circle ${
-                    activeGroups[group.group_id] ? "circle--checked" : ""
+                    activeGroup === group.group_id ? "circle--checked" : ""
                   }`}
                 />
               </ToggleContainer>

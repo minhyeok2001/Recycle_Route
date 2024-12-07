@@ -144,20 +144,29 @@ function Map({ uid }) {
   const toggleGroupMarkers = async (group_id) => {
     if (map.current) {
       try {
+        if (group_id === activeGroup) {
+          // 같은 그룹을 클릭하면 마커 제거 (언토글)
+          groupMarkers.forEach((marker) => marker.setMap(null)); // 지도에서 마커 제거
+          setGroupMarkers([]); // 상태 초기화
+          setActiveGroup(null); // 활성화된 그룹 해제
+          return; // 더 이상 처리하지 않음
+        }
+  
+        // 다른 그룹 선택 시 기존 마커 제거
+        groupMarkers.forEach((marker) => marker.setMap(null));
+  
+        // 새로운 그룹의 마커 가져오기
         const response = await fetch(`http://127.0.0.1:5001/api/group_markers/${group_id}`);
         const data = await response.json();
   
-        // 기존 마커 제거
-        groupMarkers.forEach((marker) => marker.setMap(null));
-  
-        // 새로운 마커 생성 및 추가
+        // 새 마커 생성
         const newMarkers = data.groups.map((group) => {
           const marker = new window.naver.maps.Marker({
             position: new window.naver.maps.LatLng(group.latitude, group.longitude),
             map: map.current,
             title: `CID: ${group.cid}`, // 마커에 CID 표시
             icon: {
-              content: `<div style="width: 10px; height: 10px; background-color: #ff3333; border-radius: 50%;"></div>`, // 빨간색 동그라미
+              content: `<div style="width: 20px; height: 20px; background-color: #ff3333; border-radius: 50%;"></div>`, // 빨간색 동그라미
             },
           });
   
@@ -173,7 +182,8 @@ function Map({ uid }) {
           return marker;
         });
   
-        setGroupMarkers(newMarkers); // 새 마커 상태 저장
+        // 새 마커 상태 저장
+        setGroupMarkers(newMarkers);
         setActiveGroup(group_id); // 활성화된 그룹 업데이트
       } catch (error) {
         console.error("Failed to toggle group markers:", error);
