@@ -51,30 +51,28 @@ function Map({ uid }) {
     }
   }, [currentPosition]);
 
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:5001/api/home", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid }),
+      });
+      const data = await response.json();
+      setGroups(data.groups); // 최신 그룹 목록 업데이트
+      setCollectionPoints(data.group_markers); // 의류 수거함 데이터 설정
+    } catch (error) {
+      console.error("Failed to fetch groups:", error);
+    }
+  };
+  
   useEffect(() => {
-    // 홈 데이터 요청 (그룹 및 의류 수거함 데이터 가져오기)
-    const fetchData = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:5001/api/home", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ uid }),
-        });
-        const data = await response.json();
-        setGroups(data.groups); // 그룹 데이터 설정
-        setCollectionPoints(data.group_markers); // 의류 수거함 데이터 설정
-      } catch (error) {
-        console.error("Failed to fetch home data:", error);
-      }
-    };
-
     if (uid) {
-      fetchData();
+      fetchGroups();
     }
   }, [uid]);
-
   useEffect(() => {
     // 의류 수거함 마커 추가
     if (map.current && collectionPoints.length > 0) {
@@ -295,7 +293,11 @@ function Map({ uid }) {
         groups={groups}
         toggleGroupMarkers={toggleGroupMarkers}
         isAddingGroup={isAddingGroup}
-        map = {map.current}
+        map={map.current}
+        uid={uid}
+        fetchGroups={fetchGroups}
+        activeGroup={activeGroup} // 현재 활성화된 그룹 전달
+        setActiveGroup={setActiveGroup} // 상태 업데이트 함수 전달
       />
       <div id="map" className={styles.map} />
       {!isSidebarOpen && (

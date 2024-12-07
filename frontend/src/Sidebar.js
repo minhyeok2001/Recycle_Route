@@ -1,4 +1,4 @@
-import React, { useState, useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import styles from "./sidebar.module.css";
 
@@ -48,13 +48,23 @@ const GroupItem = styled.div`
   border-bottom: 1px solid #eaeaea;
 `;
 
-function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }) {
-  const [isAddingGroup, setIsAddingGroup] = useState(false); // 그룹 추가 모드 상태
-  const [selectedRegion, setSelectedRegion] = useState(""); // 선택된 지역
-  const [groupName, setGroupName] = useState(""); // 새 그룹 이름
-  const [markers, setMarkers] = useState([]); // 현재 보여지는 마커
-  const [selectedMarkers, setSelectedMarkers] = useState([]); // 그룹에 추가할 마커
-  const [regions, setRegions] = useState([]); // 서버에서 받아온 지역 목록
+function Sidebar({
+  isOpen,
+  toggleSidebar,
+  groups,
+  toggleGroupMarkers,
+  uid,
+  map,
+  activeGroup, // 활성화된 그룹
+  setActiveGroup, // 활성화된 그룹 업데이트
+  fetchGroups
+}) {
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [markers, setMarkers] = useState([]);
+  const [selectedMarkers, setSelectedMarkers] = useState([]);
+  const [regions, setRegions] = useState([]);
 
   useEffect(() => {
     // 지역 목록을 서버에서 가져오기
@@ -62,7 +72,7 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }
       try {
         const response = await fetch("http://127.0.0.1:5001/api/districts");
         const data = await response.json();
-        setRegions(data.districts); // 서버에서 받아온 지역 목록 설정
+        setRegions(data.districts);
       } catch (error) {
         console.error("Failed to fetch regions:", error);
       }
@@ -70,6 +80,9 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }
 
     fetchRegions();
   }, []);
+
+
+  
   const startAddingGroup = () => {
     setIsAddingGroup(true);
     setSelectedRegion("");
@@ -83,45 +96,43 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }
     setGroupName("");
     setSelectedMarkers([]);
     markers.forEach((marker) => marker.setMap(null)); // 지도에서 마커 제거
+    fetchGroups(); // 그룹 목록 재갱신
   };
 
-  
   const fetchMarkersByRegion = async (region) => {
     try {
       const response = await fetch(`http://127.0.0.1:5001/api/add_markers/${region}`);
       const data = await response.json();
-  
+
       if (!data.markers || !Array.isArray(data.markers)) {
         console.error("Invalid data format or markers missing:", data);
-        return; // 데이터가 없을 경우 함수 종료
+        return;
       }
-  
-      // 기존 마커 제거
+
       markers.forEach((marker) => marker.setMap(null));
-  
-      // 새로운 마커 표시
+
       const newMarkers = data.markers.map((marker) => {
         const naverMarker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(marker.latitude, marker.longitude),
           map,
           title: `CID: ${marker.cid}`,
+          icon: {
+            content: `<div style="width: 10px; height: 10px; background-color:#FF8C00; border-radius: 50%;"></div>`,
+          },
         });
-  
-        // 마커 클릭 이벤트
+
         window.naver.maps.Event.addListener(naverMarker, "click", () => {
           handleMarkerClick(marker.cid, naverMarker);
         });
-  
+
         return naverMarker;
       });
-  
+
       setMarkers(newMarkers);
     } catch (error) {
       console.error("Failed to fetch markers:", error);
     }
   };
-
-  
 
   const saveGroup = async () => {
     if (!groupName || selectedMarkers.length === 0) {
@@ -138,13 +149,14 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }
         body: JSON.stringify({
           group_name: groupName,
           cid_list: selectedMarkers.map((marker) => marker.cid),
-          uid,
+          uid : uid,
         }),
       });
       const data = await response.json();
       if (data.success) {
         alert("그룹이 성공적으로 저장되었습니다!");
-        stopAddingGroup();
+        fetchGroups(); // 그룹 목록 업데이트
+        stopAddingGroup(); // 그룹 추가 모드 종료
       }
     } catch (error) {
       console.error("Failed to save group:", error);
@@ -155,7 +167,9 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }
     setSelectedMarkers((prev) => {
       const alreadySelected = prev.some((marker) => marker.cid === cid);
       if (alreadySelected) {
-        naverMarker.setIcon(null); // 선택 해제 시 기본 아이콘으로 변경
+        naverMarker.setIcon({
+          content: `<div style="width: 10px; height: 10px; background-color:#FF8C00; border-radius: 50%;"></div>`,
+        });
         return prev.filter((marker) => marker.cid !== cid);
       } else {
         naverMarker.setIcon({
@@ -168,27 +182,29 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }
 
   return (
     <div className={isOpen ? styles.openpage : styles.closepage}>
-      {/* 닫기 버튼 */}
       <button onClick={toggleSidebar} className={styles.button}>
         닫기
       </button>
-
-      {/* 그룹 목록 표시 */}
       <div className={styles.group}>
         <h2>그룹</h2>
         {groups.length > 0 ? (
           groups.map((group) => (
             <GroupItem key={group.group_id}>
               <span>{group.name}</span>
-              <ToggleContainer onClick={() => toggleGroupMarkers(group.group_id)}>
+              <ToggleContainer
+                onClick={() => {
+                  setActiveGroup(group.group_id); // 활성화된 그룹 설정
+                  toggleGroupMarkers(group.group_id);
+                }}
+              >
                 <div
                   className={`toggle-container ${
-                    group.active ? "toggle--checked" : ""
+                    activeGroup === group.group_id ? "toggle--checked" : ""
                   }`}
                 />
                 <div
                   className={`toggle-circle ${
-                    group.active ? "circle--checked" : ""
+                    activeGroup === group.group_id ? "circle--checked" : ""
                   }`}
                 />
               </ToggleContainer>
@@ -199,7 +215,6 @@ function Sidebar({ isOpen, toggleSidebar, groups, toggleGroupMarkers, uid, map }
         )}
       </div>
 
-      {/* 그룹 추가 섹션 */}
       <div className={styles.sidebar}>
         {isAddingGroup ? (
           <>
