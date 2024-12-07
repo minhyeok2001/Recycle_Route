@@ -3,11 +3,12 @@ import Sidebar from "./Sidebar";
 import styles from "./map2.module.css"
 import axios from "axios";
 
-function Map() {
+function Map({uid}) {
   const [currentPosition, setCurrentPosition] = useState({ lat: 37.5665, lng: 126.978 }); // 초기 위치 (서울)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 사이드바 상태
   const [groups, setGroups] = useState([]);
   const [groupMarkers, setGroupMarkers] = useState([]);
+  const [activeGroup, setActiveGroup] = useState(null); // 현재 활성화된 그룹 ID
   const map = useRef(null);
 
   useEffect(() => {
@@ -22,7 +23,7 @@ function Map() {
     } else {
       console.error("Naver Maps script is not loaded");
     }
-  }, [currentPosition]);
+  }, []);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -48,29 +49,75 @@ function Map() {
     });
   }, [currentPosition]);
 
+
   useEffect(() => {
     // 홈 데이터 요청
     const fetchGroups = async () => {
+      console.log(uid);
       try {
-        const response = await axios.get("http://127.0.0.1:5000/api/home");
-        setGroups(response.data.groups); // 그룹 데이터 설정
-        setGroupMarkers(response.data.group_markers); // 초기 마커 설정
+        const response = await fetch("http://127.0.0.1:5001/api/home", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json", // 요청 헤더 설정
+          },
+          body: JSON.stringify({ uid }), // 요청 데이터
+        });
+
+        // 서버로부터 데이터 받아서 상태 업데이트
+        const data = await response.json();
+        console.log("서버 응답 데이터:", data); // 응답 데이터 확인
+
+        setGroups(data.groups); // 그룹 데이터 설정
+        setGroupMarkers(data.group_markers); // 초기 마커 설정
       } catch (error) {
         console.error("데이터 요청 실패:", error);
       }
     };
 
-    fetchGroups();
-  }, []);
+    if (uid) {
+      fetchGroups();
+    }
+  }, [uid]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const toggleGroupMarkers = async (group_id) => {
+    if (group_id === activeGroup) {
+      // 동일한 그룹을 다시 클릭하면 마커 제거
+      groupMarkers.forEach((marker) => marker.setMap(null));
+      setGroupMarkers([]);
+      setActiveGroup(null);
+    } else {
+      // 이전 마커 제거
+      groupMarkers.forEach((marker) => marker.setMap(null));
+
+      // 새로운 그룹의 마커 가져오기
+      try {
+        const response = await fetch(`http://127.0.0.1:5001/api/group_markers/${group_id}`);
+        const data = await response.json();
+        const newMarkers = data.cids.map((cid) => {
+          const marker = new window.naver.maps.Marker({
+            position: new window.naver.maps.LatLng(cid.latitude, cid.longitude),
+            map,
+            title: `CID: ${cid.cid}`,
+          });
+          return marker;
+        });
+
+        setGroupMarkers(newMarkers);
+        setActiveGroup(group_id); // 활성화된 그룹 업데이트
+      } catch (error) {
+        console.error("Failed to toggle group markers:", error);
+      }
+    }
+  };
+
   return (
     <div className={styles.page}>
       {/* 사이드바 */}
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} groups={groups} toggleGroupMarkers={toggleGroupMarkers} />
 
       {/* 지도 영역 */}
       <div id="map" className={styles.map} />

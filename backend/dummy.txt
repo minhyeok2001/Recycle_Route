@@ -1,0 +1,30 @@
+INSERT INTO groups (name, uID) VALUES ('Group A', 214);
+INSERT INTO groups (name, uID) VALUES ('Group B', 214); 
+-- 214 부분에는 id 넣기
+
+INSERT INTO group_markers (group_id, cID) VALUES (204, 1);
+INSERT INTO group_markers (group_id, cID) VALUES (204, 2);
+INSERT INTO group_markers (group_id, cID) VALUES (204, 3);
+
+INSERT INTO group_markers (group_id, cID) VALUES (203, 225);
+INSERT INTO group_markers (group_id, cID) VALUES (203, 341);
+
+-- cID 1에 대한 기록 추가
+INSERT INTO clothing_record (cID, date, amount) VALUES (1, '2024-12-01', 50);
+INSERT INTO clothing_record (cID, date, amount) VALUES (1, '2024-12-02', 40);
+
+-- cID 2에 대한 기록 추가
+INSERT INTO clothing_record (cID, date, amount) VALUES (2, '2024-12-01', 30);
+INSERT INTO clothing_record (cID, date, amount) VALUES (2, '2024-12-03', 20);
+
+-- cID 3에 대한 기록 추가
+INSERT INTO clothing_record (cID, date, amount) VALUES (3, '2024-11-30', 60);
+INSERT INTO clothing_record (cID, date, amount) VALUES (3, '2024-12-04', 70);
+
+-- cID 225에 대한 기록 추가
+INSERT INTO clothing_record (cID, date, amount) VALUES (225, '2024-12-01', 25);
+INSERT INTO clothing_record (cID, date, amount) VALUES (225, '2024-12-05', 35);
+
+-- cID 341에 대한 기록 추가
+INSERT INTO clothing_record (cID, date, amount) VALUES (341, '2024-12-02', 45);
+INSERT INTO clothing_record (cID, date, amount) VALUES (341, '2024-12-06', 55);

@@ -1,22 +1,23 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session,make_response
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 
 
-
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
-app.secret_key = 'hola~' 
+
+app.config['SECRET_KEY'] = 'your-secret-key'
+
+CORS(app)
 
 # PostgreSQL 연결 함수
 def get_db_connection():
     return psycopg2.connect(
         host="localhost",
-        port="5432",
+        port="5431",
         user="postgres",
-        password="1234",
-        database="postgres"
+        password="psql",
+        database="db_project"
     )
 
 # 테이블 생성 함수
@@ -312,7 +313,6 @@ if flag == 1:
     insert_test_data()
     insert_view_trigger()
 
-
 # 회원가입 엔드포인트
 @app.route('/api/signup', methods=['POST'])
 def signup():
@@ -362,8 +362,9 @@ def login():
                 if not user or not check_password_hash(user[1], password):
                     return jsonify({'error': '이메일 또는 비밀번호가 잘못되었습니다.'}), 401
 
-                session['uid'] = user[0]
-                return jsonify({'success': True, 'message': '로그인 성공!'}), 200
+                resp = make_response(jsonify({'success': True, 'uid': user[0]}))
+                
+                return resp
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -388,11 +389,13 @@ def get_districts():
                 return jsonify({'districts': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+        
 # 홈 화면 요청
-@app.route('/api/home', methods=['GET'])
+@app.route('/api/home',  methods=['POST'])
 def home():
-    user_id = session.get('uid')
+    data = request.json
+    user_id = data.get('uid')
+    print(f"Request data: {data}")  # 요청 데이터 확인
     if not user_id:
         return jsonify({'error': '로그인이 필요합니다.'}), 401
     try:
@@ -510,6 +513,7 @@ def confirm_add_markers():
     data = request.json
     group_name = data.get('group_name')
     cid_list = data.get('cid_list')
+    user_id = data.get('uid')
 
     if not cid_list or not isinstance(cid_list, list):
         return jsonify({'error': 'Invalid input. Provide a list of cIDs.'}), 400
@@ -519,7 +523,6 @@ def confirm_add_markers():
         with conn:
             with conn.cursor() as cursor:
                 # 사용자 ID 확인 (로그인 기반)
-                user_id = session.get('uid')
                 if not user_id:
                     return jsonify({'error': 'User not logged in'}), 401
 
@@ -570,4 +573,4 @@ def get_district_rollup():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0',debug=True,port=5001)

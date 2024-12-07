@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import styles from "./login.module.css";
 
-function Login({ setIsLoggedIn }) {
+function Login({ setIsLoggedIn, setUid }) { // uid 설정 함수 추가
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false); // 회원가입과 로그인 화면 분리
 
   const handleSubmit = async () => {
-    const endpoint = isSignup ? "http://127.0.0.1:5000/api/signup" : "http://127.0.0.1:5000/api/login";
+    const endpoint = isSignup ? "http://127.0.0.1:5001/api/signup" : "http://127.0.0.1:5001/api/login";
     const body = JSON.stringify({ email, password });
 
     try {
@@ -16,14 +16,18 @@ function Login({ setIsLoggedIn }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({email,password}),
+        body: body,
       });
 
       const data = await response.json();
 
       if (response.ok) {
         alert(isSignup ? "회원가입 성공" : "로그인 성공");
-        if (!isSignup) setIsLoggedIn(true); // 로그인 성공 시 화면 전환
+
+        if (!isSignup) {
+          setIsLoggedIn(true); // 로그인 성공 상태 설정
+          setUid(data.uid); // 서버로부터 받은 uid 저장
+        }
       } else {
         alert(data.message || "오류가 발생했습니다.");
       }
