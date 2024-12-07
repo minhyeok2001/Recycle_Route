@@ -545,7 +545,40 @@ def confirm_add_markers():
                 return jsonify({'success': True, 'group_id': group_id, 'message': 'Group created successfully!'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+        
+@app.route('/api/group_markers/<int:group_id>', methods=['GET'])
+def get_group_markers(group_id):
+    """
+    주어진 그룹 ID에 속한 마커 데이터를 반환
+    """
+    try:
+        conn = get_db_connection()
+        with conn:
+            with conn.cursor() as cursor:
+                # 그룹 ID에 속한 마커 정보 가져오기
+                cursor.execute("""
+                    SELECT gm.cID, cb.latitude, cb.longitude
+                    FROM group_markers gm
+                    JOIN clothing_box cb ON gm.cID = cb.cID
+                    WHERE gm.group_id = %s;
+                """, (group_id,))
+                markers = cursor.fetchall()
+                
+                if not markers:
+                    return jsonify({'error': 'No markers found for the specified group.'}), 404
+                
+                # 마커 데이터 가공
+                result = [
+                    {
+                        'cid': marker[0],
+                        'latitude': marker[1],
+                        'longitude': marker[2],
+                    } for marker in markers
+                ]
 
+                return jsonify({'groups': result})  # 응답에 그룹 데이터 포함
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # 행정구역 별 전체 수거량 합계 OLAP
 @app.route('/api/district_rollup', methods=['GET'])
@@ -573,4 +606,4 @@ def get_district_rollup():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',debug=True,port=5001)
+    app.run(debug=True,port=5001)
