@@ -183,6 +183,43 @@ function Map({ uid }) {
     }
   };
 
+  const attachMarkerClickHandler = (marker, point) => {
+    const infoWindow = new window.naver.maps.InfoWindow();
+  
+    window.naver.maps.Event.addListener(marker, "click", async () => {
+      try {
+        console.log(`Fetching marker info for CID: ${point.cid}`);
+        const response = await fetch(`http://127.0.0.1:5001/api/marker/${point.cid}`);
+        if (!response.ok) throw new Error(`Error: ${response.status}`);
+  
+        const data = await response.json();
+        console.log(`Marker info for CID ${point.cid}:`, data);
+  
+        const content = `
+        <div style="padding:10px;">
+          <strong>ID:</strong> ${point.cid}<br/>
+          ${data.marker_info 
+            ? `<strong>Last Record Date:</strong> ${data.marker_info.date}<br/>
+               <strong>Amount:</strong> ${data.marker_info.amount}<br/>`
+            : `<strong>Last Record Date:</strong> 없음<br/>
+               <strong>Amount:</strong> 없음<br/>`}
+          <button id="edit-button-${point.cid}" style="margin-top:10px;">ADD RECORD</button>
+        </div>`;
+        infoWindow.setContent(content);
+        infoWindow.open(map.current, marker);
+  
+        setTimeout(() => {
+          const editButton = document.getElementById(`edit-button-${point.cid}`);
+          if (editButton) {
+            editButton.addEventListener("click", () => handleEditClick(point.cid));
+          }
+        }, 0);
+      } catch (error) {
+        console.error("Failed to fetch marker info:", error);
+      }
+    });
+  };
+
   const toggleGroupMarkers = async (group_id) => {
     if (!map.current) return;
   
@@ -192,7 +229,7 @@ function Map({ uid }) {
         groupMarkers.forEach((marker) => marker.setMap(null)); // 기존 그룹 마커 제거
         setGroupMarkers([]); // 그룹 마커 상태 초기화
         setActiveGroup(null); // 활성화된 그룹 초기화
-  
+      
         // 기존 collectionPoints로 마커 재생성
         const newMarkers = collectionPoints.map((point) => {
           const marker = new window.naver.maps.Marker({
@@ -200,10 +237,25 @@ function Map({ uid }) {
             map: map.current,
             title: `ID: ${point.cid}`,
           });
-  
+      
+          // 클릭 핸들러 추가
+          attachMarkerClickHandler(marker, point);
+      
           return marker;
         });
-  
+
+        // 지도 클릭 이벤트 리스너 복원
+        if (map.current) {
+          window.naver.maps.Event.addListener(map.current, "click", () => {
+            // 모든 InfoWindow 닫기
+            newMarkers.forEach((marker) => {
+              if (marker.infoWindow) {
+                marker.infoWindow.close();
+              }
+            });
+          });
+        }
+      
         setGroupMarkers(newMarkers); // 업데이트된 마커 상태 저장
         return; // 여기서 종료
       }
@@ -227,10 +279,6 @@ function Map({ uid }) {
         // 팝업 추가
         const infoWindow = new window.naver.maps.InfoWindow({
           content: `<div style="padding:10px;">Group: ${group.name}</div>`,
-        });
-  
-        window.naver.maps.Event.addListener(marker, "click", () => {
-          infoWindow.open(map.current, marker); // 마커 클릭 시 팝업 표시
         });
   
         return marker;
