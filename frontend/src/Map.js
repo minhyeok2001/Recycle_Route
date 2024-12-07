@@ -73,20 +73,27 @@ function Map({ uid }) {
       fetchGroups();
     }
   }, [uid]);
+
+  
   
   useEffect(() => {
     if (!map.current) return;
   
-    // 기존 마커 삭제
-    console.log("기존 마커 제거 시작");
-    groupMarkers.forEach((marker) => marker.setMap(null));
-    setGroupMarkers([]);
+    console.log("CollectionPoints 업데이트:", collectionPoints);
   
-    if (collectionPoints.length > 0) {
-      console.log("새로운 collectionPoints:", collectionPoints);
+    // 기존 마커와 새로운 마커 비교
+    const updatedMarkers = collectionPoints.map((point) => {
+      // 동일 CID 마커가 이미 있는지 확인
+      const existingMarker = groupMarkers.find(
+        (marker) => marker.getTitle() === `ID: ${point.cid}`
+      );
   
-      // 새로운 마커 추가
-      const newMarkers = collectionPoints.map((point) => {
+      if (existingMarker) {
+        console.log(`기존 마커 유지: CID ${point.cid}`);
+        return existingMarker; // 기존 마커 유지
+      } else {
+        console.log(`새로운 마커 생성: CID ${point.cid}`);
+        // 새로운 마커 생성
         const marker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(point.latitude, point.longitude),
           map: map.current,
@@ -95,6 +102,7 @@ function Map({ uid }) {
   
         const infoWindow = new window.naver.maps.InfoWindow();
   
+        let mapClickListener = null;
         // 마커 클릭 이벤트 추가
         window.naver.maps.Event.addListener(marker, "click", async () => {
           try {
@@ -105,18 +113,35 @@ function Map({ uid }) {
             const data = await response.json();
             console.log(`Marker info for CID ${point.cid}:`, data);
   
-            const content = data.marker_info
-              ? `<div style="padding:10px;">
-                  <strong>ID:</strong> ${point.cid}<br/>
-                  <strong>Last Record Date:</strong> ${data.marker_info.date}<br/>
-                  <strong>Amount:</strong> ${data.marker_info.amount}<br/>
-                  <button id="edit-button-${point.cid}" style="margin-top:10px;">Edit</button>
-                 </div>`
-              : `<div style="padding:10px;">No record available for this marker</div>`;
+            const content = `
+            <div style="padding:10px;">
+              <strong>ID:</strong> ${point.cid}<br/>
+              ${data.marker_info 
+                ? `<strong>Last Record Date:</strong> ${data.marker_info.date}<br/>
+                   <strong>Amount:</strong> ${data.marker_info.amount}<br/>`
+                : `<strong>Last Record Date:</strong> 없음<br/>
+                   <strong>Amount:</strong> 없음<br/>`}
+              <button id="edit-button-${point.cid}" style="margin-top:10px;">ADD RECORD</button>
+            </div>`;
             infoWindow.setContent(content);
             infoWindow.open(map.current, marker);
-  
+
+
+            if (mapClickListener) {
+              // 기존 리스너 제거
+              window.naver.maps.Event.removeListener(mapClickListener);
+            }
+        
+            // 새로운 리스너 추가
+            mapClickListener = window.naver.maps.Event.addListener(map.current, "click", () => {
+              infoWindow.close();
+              if (mapClickListener) {
+                window.naver.maps.Event.removeListener(mapClickListener);
+                mapClickListener = null; // 리스너 초기화
+              }
+            });
             // Edit 버튼 클릭 이벤트 추가
+
             setTimeout(() => {
               const editButton = document.getElementById(`edit-button-${point.cid}`);
               if (editButton) {
@@ -129,13 +154,11 @@ function Map({ uid }) {
         });
   
         return marker;
-      });
+      }
+    });
   
-      setGroupMarkers(newMarkers); // 마커 상태 업데이트
-      console.log("새로운 마커 업데이트 완료:", newMarkers);
-    } else {
-      console.log("collectionPoints가 비어 있습니다. 마커 초기화 완료.");
-    }
+    // 업데이트된 마커만 설정
+    setGroupMarkers(updatedMarkers);
   }, [collectionPoints]);
 
   const handleEditClick = (cid) => {

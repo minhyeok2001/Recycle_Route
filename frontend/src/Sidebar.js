@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import styles from "./sidebar.module.css";
+import RollupSummary from "./RollupSummary";
 
 // Styled Components for Toggle
 const ToggleContainer = styled.div`
@@ -303,6 +304,8 @@ function Sidebar({
           <button onClick={startAddingGroup}>그룹 추가</button>
         )}
       </div>
+
+      <RollupSummary />
     </div>
   );
 }

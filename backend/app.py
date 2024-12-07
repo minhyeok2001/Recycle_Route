@@ -458,8 +458,9 @@ def get_marker_info(cid):
                     LIMIT 1;
                 """, (cid,))
                 record = cursor.fetchone()
+                # 기록이 없을 경우 빈 데이터 반환
                 if not record:
-                    return jsonify({'error': '기록이 없습니다.'}), 404
+                    return jsonify({'marker_info': None})  # 빈 데이터로 응답
                 return jsonify({'marker_info': {'date': record[0], 'amount': record[1]}})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -602,7 +603,7 @@ def delete_group(group_id):
         return jsonify({'success': True, 'message': 'Group deleted successfully!'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-        
+
 # 행정구역 별 전체 수거량 합계 OLAP
 @app.route('/api/district_rollup', methods=['GET'])
 def get_district_rollup():
