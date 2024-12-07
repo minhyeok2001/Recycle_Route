@@ -514,6 +514,7 @@ def confirm_add_markers():
     group_name = data.get('group_name')
     cid_list = data.get('cid_list')
     user_id = data.get('uid')
+    print(user_id)
 
     if not cid_list or not isinstance(cid_list, list):
         return jsonify({'error': 'Invalid input. Provide a list of cIDs.'}), 400
@@ -580,6 +581,28 @@ def get_group_markers(group_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/delete_group/<int:group_id>', methods=['DELETE'])
+def delete_group(group_id):
+    try:
+        conn = get_db_connection()
+        with conn:
+            with conn.cursor() as cursor:
+                # 그룹 삭제
+                cursor.execute("""
+                    DELETE FROM groups
+                    WHERE group_id = %s;
+                """, (group_id,))
+
+                # 그룹에 연결된 마커도 삭제 (옵션)
+                cursor.execute("""
+                    DELETE FROM group_markers
+                    WHERE group_id = %s;
+                """, (group_id,))
+
+        return jsonify({'success': True, 'message': 'Group deleted successfully!'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+        
 # 행정구역 별 전체 수거량 합계 OLAP
 @app.route('/api/district_rollup', methods=['GET'])
 def get_district_rollup():

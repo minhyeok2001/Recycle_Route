@@ -204,6 +204,11 @@ function Sidebar({
           setGroupMarkers([]); // 상태 초기화
           setActiveGroup(null); // 활성화된 그룹 해제
         }
+
+      // `collectionPoints` 업데이트: 삭제된 그룹과 관련된 마커 제거
+      setCollectionPoints((prevPoints) =>
+        prevPoints.filter((point) => point.group_id !== group_id)
+      );
   
         await fetchGroups(); // 그룹 목록을 갱신
       } else {
