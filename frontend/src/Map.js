@@ -193,6 +193,100 @@ function Map({ uid }) {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+
+  const [isAddingGroup, setIsAddingGroup] = useState(false); // 그룹 추가 모드 상태
+  const [selectedRegion, setSelectedRegion] = useState(""); // 선택된 지역
+  const [groupName, setGroupName] = useState(""); // 새 그룹 이름
+  const [markers, setMarkers] = useState([]); // 현재 보여지는 마커
+  const [selectedMarkers, setSelectedMarkers] = useState([]); // 그룹에 추가할 마커
+
+  const startAddingGroup = () => {
+    setIsAddingGroup(true);
+    setSelectedRegion("");
+    setGroupName("");
+    setSelectedMarkers([]);
+  };
+
+  const stopAddingGroup = () => {
+    setIsAddingGroup(false);
+    setSelectedRegion("");
+    setGroupName("");
+    setSelectedMarkers([]);
+  };
+
+  const fetchMarkersByRegion = async (region) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:5001/api/add_markers/${region}`);
+      const data = await response.json();
+  
+      // 기존 마커 제거
+      markers.forEach((marker) => marker.setMap(null));
+      
+      // 새로운 마커 표시
+      const newMarkers = data.markers.map((marker) => {
+        const naverMarker = new window.naver.maps.Marker({
+          position: new window.naver.maps.LatLng(marker.latitude, marker.longitude),
+          map,
+          title: `CID: ${marker.cid}`,
+        });
+  
+        // 마커 클릭 이벤트
+        window.naver.maps.Event.addListener(naverMarker, "click", () => {
+          handleMarkerClick(marker.cid, naverMarker);
+        });
+  
+        return naverMarker;
+      });
+  
+      setMarkers(newMarkers);
+    } catch (error) {
+      console.error("Failed to fetch markers:", error);
+    }
+  };
+
+  const saveGroup = async () => {
+    if (!groupName || selectedMarkers.length === 0) {
+      alert("그룹 이름과 선택된 마커를 확인해주세요!");
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://127.0.0.1:5001/api/add_markers/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          group_name: groupName,
+          cid_list: selectedMarkers.map((marker) => marker.cid),
+          uid,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert("그룹이 성공적으로 저장되었습니다!");
+        stopAddingGroup();
+      }
+    } catch (error) {
+      console.error("Failed to save group:", error);
+    }
+  };
+
+  const handleMarkerClick = (cid, naverMarker) => {
+    setSelectedMarkers((prev) => {
+      const alreadySelected = prev.some((marker) => marker.cid === cid);
+      if (alreadySelected) {
+        naverMarker.setIcon(null); // 선택 해제 시 기본 아이콘으로 변경
+        return prev.filter((marker) => marker.cid !== cid);
+      } else {
+        naverMarker.setIcon({
+          content: `<div style="width:20px; height:20px; background-color:#ff3333; border-radius:50%;"></div>`,
+        });
+        return [...prev, { cid }];
+      }
+    });
+  };
+
   return (
     <div className={styles.page}>
       <Sidebar
@@ -200,6 +294,8 @@ function Map({ uid }) {
         toggleSidebar={toggleSidebar}
         groups={groups}
         toggleGroupMarkers={toggleGroupMarkers}
+        isAddingGroup={isAddingGroup}
+        map = {map.current}
       />
       <div id="map" className={styles.map} />
       {!isSidebarOpen && (
